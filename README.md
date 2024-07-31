@@ -1,25 +1,45 @@
-Code Breakdown
------------------------------------------------------------------------
-Classes:
--------------------------
-AutoScrollingText: Creates a textbox that automatically scrolls as new text is added.
+# Ping Monitoring Script
 
-PingApp:
------------------------
-Your main application. Manages the GUI, display of ping results, and updating those results.
+This repository contains a Python script for monitoring the status of network devices by sending ping requests.
 
-GUI (Graphical User Interface):
--------------------------------------------
-Uses tkinter for GUI elements (labels, textboxes, grid layout
+## Description
 
-Organizes monitored IP addresses into frames
+The `Ping_Monitoring.py` script periodically pings a list of IP addresses and logs the results. This can be useful for monitoring the availability and responsiveness of network devices.
 
-Color-codes results for easy status check (green = good, red = down)
+## Requirements
 
-Uses separate consoles to display results specifically for PLDT 2TP and Globe 2TP connections.
+- Python 3.x
+- `os` module (standard library)
+- `subprocess` module (standard library)
 
-Ping Functionality:
-----------------------------------------
-Multi-threaded ping implementation to concurrently check multiple IP addresses.
+## Installation
 
-Stores results from threads for updating labels in the interface.
+1. Clone this repository to your local machine:
+    ```bash
+    git clone https://github.com/yourusername/PingMonitoring.git
+    cd PingMonitoring
+    ```
+
+2. Ensure you have Python 3 installed on your machine.
+
+## Usage
+
+1. Open the script and modify the list of IP addresses to monitor:
+    ```python
+    ips = ['192.168.1.1', '8.8.8.8', '1.1.1.1']
+    ```
+
+2. Run the script:
+    ```bash
+    python Ping_Monitoring.py
+    ```
+
+3. The script will output the status of each IP address to the console.
+
+## Contributing
+
+Contributions are welcome! Please fork this repository and submit a pull request for any improvements or bug fixes.
+
+## License
+
+This project is licensed under the MIT License - see the LICENSE file for details.
