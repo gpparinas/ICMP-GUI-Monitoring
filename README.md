@@ -19,7 +19,7 @@ Customizable: Easily add or remove devices and services via the config.json file
 ## Requirements
 Python 3.x
 
-##External Libraries:
+# External Libraries:
 
 ping3 (for ICMP ping functionality)
 
@@ -48,14 +48,14 @@ git clone https://github.com/yourusername/PingMonitoring.git
 cd PingMonitoring
 Install Python 3.x if not already installed. Download it from python.org.
 
-#Install required libraries:
+# Install required libraries:
 
 bash
 Copy
-pip install ping3 requests validators
+`pip install ping3 requests validators`
 Create a config.json file in the project directory with the following structure:
 
-json
+`json`
 Copy
 `{
     "ip_addresses": {
@@ -75,7 +75,7 @@ Run the application:
 
 bash
 Copy
-python Ping_Monitoring.py
+`python Ping_Monitoring.py`
 ## Application Features:
 
 Network Devices Tab: Displays the status of IP addresses (ping results).
@@ -110,17 +110,17 @@ Create a new branch for your feature or bug fix:
 
 bash
 Copy
-git checkout -b feature/your-feature-name
+`git checkout -b feature/your-feature-name`
 Commit your changes:
 
 bash
 Copy
-git commit -m "Add your message here"
+`git commit -m "Add your message here"`
 Push to the branch:
 
 bash
 Copy
-git push origin feature/your-feature-name
+`git push origin feature/your-feature-name`
 Submit a pull request.
 
 # License
