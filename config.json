@@ -1,0 +1,12 @@
+{
+    "ip_addresses": {
+        "Google DNS": "8.8.8.8",
+        "PLDT Gateway (1 Fintech)": "58.69.0.89",
+        "Cloud Server": "157.197.66.126"
+    },
+    "web_services": {
+        "AWS Console": "https://aws.amazon.com",
+        "Azure Portal": "https://portal.azure.com",
+        "GCP Console": "https://console.cloud.google.com"
+    }
+}

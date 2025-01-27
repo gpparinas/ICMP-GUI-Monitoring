@@ -1,180 +1,190 @@
-import threading
-import time
+import os
+import json
 import tkinter as tk
-from tkinter import Text
-from ping3 import ping
+from tkinter import ttk, messagebox, Scrollbar
 import requests
-import validators
-class AutoScrollingText:
-    def __init__(self, master, **kwargs):
-        self.text = Text(master, **kwargs)
-        self.text.config(yscrollcommand=False)
-        
-class PingApp(tk.Tk):
+from ping3 import ping
+from datetime import datetime
+
+class MonitoringDashboard(tk.Tk):
     def __init__(self):
         super().__init__()
-
-        self.title("Iloilo Nearsol | Ping Monitor")
-
-        # Set the window resolution
-        self.geometry("1280x720")
-
-        # Add an attribute to store the current full-screen state
-        self.is_fullscreen = False
-
-        # Bind F11 key to toggle full-screen mode
-        self.bind("<F11>", self.toggle_fullscreen)
+        self.title("Network Health Monitor Pro")
+        self.geometry("1440x900")
+        self.configure(bg="#f0f2f5")
         
-        self.web_services = {
-        "Amazon": "https://aws.amazon.com",
-        "Microsoft":"https://www.office.com",
-        "Google": "https://google.com"
-        }
-          
-        self.web_service_labels = {}  # Initialize here
+        # Configure style
+        self.style = ttk.Style()
+        self.style.theme_use('clam')
+        self._configure_styles()
         
-        for idx, name in enumerate(self.web_services):
-            row = idx // 3 + 5  # Place web service results below ping results
-            col = idx % 3
-            frame = tk.Frame(self, bg="black")
-            frame.grid(row=row * 2, column=col * 2, columnspan=2, padx=14, pady=26, sticky='nsew')
-            self.grid_rowconfigure(row * 2, weight=1)
-            self.grid_columnconfigure(col * 2, weight=1)  
-
-            label = tk.Label(frame, text=name, font=("Arial", 18), bg="black", fg="white")
-            label.pack(anchor='w')
-            result_label = tk.Label(frame, text="", font=("Arial", 17), bg="black", fg="white", wraplength="400",justify='center')
-            result_label.pack(fill='both', expand=True)
-            self.web_service_labels[name] = result_label
-    
-        self.ip_addresses = {
-           "Google DNS": "8.8.8.8",
-            "wah.gsipartners.com": "199.241.233.147",
-            "evdi.sdsacloud.com": "157.197.66.126",
-            "vpn-da2.omnicare365.com": "40.142.101.204",
-            "PLDT Radial Gateway": "58.69.0.89",
-            "PLDT Medrisk Gateway": "115.146.189.62"
-        }
-
-        self.configure(bg="black")
-
-        self.frames = {}
-        self.labels = {}
-        for idx, name in enumerate(self.ip_addresses):
-            row = idx // 3
-            col = idx % 3
-            frame = tk.Frame(self, bg="black")
-            frame.grid(row=row * 2, column=col * 2, columnspan=2, padx=14, pady=26, sticky='nsew')
-            self.grid_rowconfigure(row * 2, weight=1)
-            self.grid_columnconfigure(col * 2, weight=1)
-
-            self.frames[name] = frame
-
-            label = tk.Label(frame, text=name, font=("Arial", 18), bg="black", fg="white")
-            label.pack(anchor='w')
-            result_label = tk.Label(frame, text="", font=("Arial", 17), bg="black", fg="white", wraplength="400",justify='center')
-            result_label.pack(fill='both', expand=True)
-            self.labels[name] = result_label
-
-        for i in range(5):
-            self.grid_rowconfigure(i, weight=1)
-        for i in range(6):
-            self.grid_columnconfigure(i, weight=1)
-
-        self.console = AutoScrollingText(self, bg="black", fg="white", height=16, font=("Arial", 12))
-        self.console.text.grid(row=4, column=0, columnspan=3, padx=10, pady=16, sticky="nsew")
-
-        self.console_globe = AutoScrollingText(self, bg="black", fg="white", height=16, font=("Arial", 12))
-        self.console_globe.text.grid(row=4, column=3, columnspan=3, padx=10, pady=16, sticky="nsew")
-
-        self.update_ping_results()
-
-    def toggle_fullscreen(self, event=None):
-        self.is_fullscreen = not self.is_fullscreen
-        self.attributes("-fullscreen", self.is_fullscreen)
-        return "break"
-
-    def check_web_service(self, name, url, timeout=5):
-            print(f"Checking URL: {url}")
-            if not validators.url(url):
-                print(f"URL Failed validation: {url}")
-                return "Invalid URL: URL failed validation"
-            try:
-                response = requests.get(url, timeout=timeout)
-                response.raise_for_status()  # Raise an exception for HTTP errors
-
-                delay = response.elapsed.total_seconds()
-                result = f"OK ({delay:.2f}s)" if delay < 1 else f"OK (but slow: {delay:.2f}s)"
-            except requests.exceptions.MissingSchema:
-                    result = "Invalid URL: Missing scheme (http:// or https://)"
-            except requests.exceptions.ConnectionError:
-                    result = "Connection Error"
-            except requests.exceptions.Timeout:
-                    result = "Timeout"
-            except requests.exceptions.RequestException as e:
-                    result = f"HTTP Error: {e}"
-            return result
+        # Initialize data from config
+        self.services = self.load_config()
         
+        # Create widgets
+        self._create_widgets()
+        self._layout_ui()
+        self.update_checks()
+
+    def load_config(self):
+        config_path = os.path.join(os.path.dirname(__file__), 'config.json')
+        try:
+            with open(config_path) as f:
+                config = json.load(f)
+                return {
+                    "Network Devices": config.get("ip_addresses", {}),
+                    "Web Services": config.get("web_services", {})
+                }
+        except Exception as e:
+            messagebox.showerror("Config Error", f"Failed to load config: {str(e)}")
+            self.destroy()
+            return {}
+
+    def _configure_styles(self):
+        self.style.configure('TFrame', background='#f0f2f5')
+        self.style.configure('Header.TFrame', background='#2c3e50')
+        self.style.configure('Card.TFrame', background='white', relief='groove')
+        self.style.configure('Status.TLabel', background='white', font=('Segoe UI', 10))
+        self.style.configure('Title.TLabel', background='#2c3e50', foreground='white', 
+                           font=('Segoe UI', 12, 'bold'))
+        self.style.configure('Green.TLabel', background='#2ecc71', foreground='white')
+        self.style.configure('Red.TLabel', background='#e74c3c', foreground='white')
+        self.style.configure('Yellow.TLabel', background='#f1c40f', foreground='black')
+        self.style.map('TButton', background=[('active', '#3498db')], foreground=[('active', 'white')])
+
+    def _create_widgets(self):
+        # Header
+        self.header = ttk.Frame(self, style='Header.TFrame')
+        self.title_label = ttk.Label(self.header, text="NETWORK HEALTH MONITOR", style='Title.TLabel')
+        self.last_update = ttk.Label(self.header, text="Last update: --:--:--", style='Title.TLabel')
         
-    def update_ping_results(self):
-        def ping_ip(name, ip_address, timeout=2):
-            try:
-                delay = ping(ip_address, timeout=timeout) * 1000
-                if delay is not None:
-                    delay_str = "0.{:03d}".format(int(delay))
-                    if delay >= 200.0:
-                        result = f"Responded in {delay_str} ms"
-                        color = "yellow"
-                    else:
-                        result = f"Responded in {delay_str} ms"
-                        color = "green"
-                else:
-                    result = f"Down or not responding within the timeout"
-                    color = "red"
-            except Exception as e:
-                result = f"Error pinging {name} ({ip_address}): {e}"
-                color = "red"
-            return result, color
-
-        web_service_threads = []
+        # Service panels
+        self.notebook = ttk.Notebook(self)
+        self.network_tab = ttk.Frame(self.notebook)
+        self.web_tab = ttk.Frame(self.notebook)
         
-        for name, url in self.web_services.items():
-            t = threading.Thread(name=name, target=self.check_web_service, args=(name, url))
-            t.start()
-            web_service_threads.append(t)
+        # Create service cards
+        self.service_cards = {}
+        for category in self.services:
+            tab = self.network_tab if category == "Network Devices" else self.web_tab
+            for service in self.services[category]:
+                card = ttk.Frame(tab, style='Card.TFrame', padding=10)
+                self.service_cards[service] = {
+                    'frame': card,
+                    'title': ttk.Label(card, text=service, font=('Segoe UI', 11, 'bold')),
+                    'status': ttk.Label(card, text="Checking...", style='Status.TLabel'),
+                    'time': ttk.Label(card, text="", style='Status.TLabel'),
+                    'icon': ttk.Label(card, text="🔄", font=('Segoe UI', 24))
+                }
 
-        for t in web_service_threads:
-            t.join()
-            result = t.result  # Fetch the result stored in the Thread object
-            if "OK" in result:
-                self.web_service_labels[t.name].config(text=result, fg="green")
-            else:
-                self.web_service_labels[t.name].config(text=result, fg="red")
-                
-        threads = []
+        # Alert panel
+        self.alert_panel = ttk.Frame(self, style='Card.TFrame')
+        self.alert_title = ttk.Label(self.alert_panel, text="🔔 Active Alerts (0)", 
+                                   font=('Segoe UI', 11, 'bold'))
+        self.alert_list = tk.Listbox(self.alert_panel, bg='white', bd=0, 
+                                   font=('Segoe UI', 10), height=8)
+        self.alert_scroll = Scrollbar(self.alert_panel, orient="vertical")
+        
+        # Control panel
+        self.control_panel = ttk.Frame(self, style='Card.TFrame')
+        ttk.Button(self.control_panel, text="Refresh Now", command=self.update_checks).pack(pady=5)
+        ttk.Button(self.control_panel, text="History Report", command=self.show_history).pack(pady=5)
+        ttk.Button(self.control_panel, text="Settings", command=self.show_settings).pack(pady=5)
 
-        for name, ip in self.ip_addresses.items():
-            t = threading.Thread(name=name, target=ping_ip, args=(name, ip))
-            t.start()
-            threads.append(t)
+    def _layout_ui(self):
+        # Header layout
+        self.header.pack(fill='x', padx=10, pady=10)
+        self.title_label.pack(side='left', padx=20)
+        self.last_update.pack(side='right', padx=20)
+        
+        # Main content layout
+        self.notebook.add(self.network_tab, text="🖧 Network Devices")
+        self.notebook.add(self.web_tab, text="🌐 Web Services")
+        self.notebook.pack(fill='both', expand=True, padx=10, pady=(0,10))
+        
+        # Service cards layout
+        for category in self.services:
+            tab = self.network_tab if category == "Network Devices" else self.web_tab
+            row, col = 0, 0
+            for service in self.services[category]:
+                card = self.service_cards[service]
+                card['frame'].grid(row=row, column=col, padx=10, pady=10, sticky='nsew')
+                card['title'].grid(row=0, column=0, columnspan=2, sticky='w')
+                card['icon'].grid(row=1, column=0, rowspan=2, padx=(0,10))
+                card['status'].grid(row=1, column=1, sticky='w')
+                card['time'].grid(row=2, column=1, sticky='w')
+                col += 1
+                if col > 2:
+                    col = 0
+                    row += 1
+            for i in range(3):
+                tab.grid_columnconfigure(i, weight=1)
+        
+        # Right sidebar layout
+        self.alert_panel.pack(side='right', fill='y', padx=(0,10), pady=10)
+        self.alert_title.pack(fill='x', padx=10, pady=10)
+        self.alert_scroll.pack(side='right', fill='y')
+        self.alert_list.pack(fill='both', expand=True, padx=10, pady=(0,10))
+        self.alert_list.config(yscrollcommand=self.alert_scroll.set)
+        self.alert_scroll.config(command=self.alert_list.yview)
+        
+        self.control_panel.pack(side='right', fill='y', padx=(0,10), pady=10)
 
-        for t in threads:
-            t.join()
-            result, color = t.result  # Unpack the result and color
-            self.labels[t.name].config(text=result, fg=color)  # Use the color for text
-            if t.name in ["wah.gsipartners.com", "evdi.sdsacloud.com"]:
-                console_to_use = self.console if t.name == "wah.gsipartners.com" else self.console_globe
-                console_to_use.text.insert(tk.END, f"{t.name}: {result}\n")
-                console_to_use.text.see(tk.END)
+    def update_status(self, service, status, response_time):
+        card = self.service_cards[service]
+        status_text = ""
+        status_style = ""
+        icon = "✅"
+        
+        if status == "success":
+            status_text = f"Operational ({response_time}ms)"
+            status_style = 'Green.TLabel'
+            icon = "✅"
+        elif status == "warning":
+            status_text = f"Performance Degradation ({response_time}ms)"
+            status_style = 'Yellow.TLabel'
+            icon = "⚠️"
+        else:
+            status_text = "Service Unavailable"
+            status_style = 'Red.TLabel'
+            icon = "❌"
+        
+        card['status'].configure(text=status_text, style=status_style)
+        card['time'].configure(text=f"Last check: {datetime.now().strftime('%H:%M:%S')}")
+        card['icon'].configure(text=icon)
+        self.last_update.configure(text=f"Last update: {datetime.now().strftime('%H:%M:%S')}")
 
-                    
-        self.after(1000, self.update_ping_results)
+    def update_checks(self):
+        # Network devices check
+        if "Network Devices" in self.services:
+            for service, ip in self.services["Network Devices"].items():
+                try:
+                    response = ping(ip, timeout=2)
+                    status = "success" if response else "error"
+                    self.update_status(service, status, round((response or 0)*1000, 1))
+                except Exception as e:
+                    self.update_status(service, "error", 0)
+        
+        # Web services check
+        if "Web Services" in self.services:
+            for service, url in self.services["Web Services"].items():
+                try:
+                    start = datetime.now()
+                    response = requests.get(url, timeout=5)
+                    response_time = (datetime.now() - start).total_seconds() * 1000
+                    status = "success" if response.ok else "warning"
+                    self.update_status(service, status, round(response_time, 1))
+                except Exception as e:
+                    self.update_status(service, "error", 0)
+        
+        self.after(5000, self.update_checks)
+
+    def show_history(self):
+        messagebox.showinfo("History", "Historical reports feature coming soon!")
+
+    def show_settings(self):
+        messagebox.showinfo("Settings", "Configuration panel coming soon!")
 
 if __name__ == "__main__":
-    # Set the result attribute for the Thread class to store results
-    threading.Thread.result = None
-    def run_with_result(self, *args, **kwargs):
-        self.result = self._target(*self._args, **self._kwargs)
-    threading.Thread.run = run_with_result
-    app = PingApp()
+    app = MonitoringDashboard()
     app.mainloop()
