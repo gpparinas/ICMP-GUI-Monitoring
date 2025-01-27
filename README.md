@@ -94,8 +94,8 @@ The `Ping_Monitoring.py` script is now a full-featured **Network Health Monitor 
 
 ### Screenshot
 
-![Network Health Monitor Pro](path/to/your/screenshot.png)  
-*(Replace with an actual screenshot of the application once available.)*
+![Network Health Monitor Pro](images/screenshot_net.png)  
+![Network Health Monitor Pro 2](images/screenshot_web.png)
 
 ## Contributing
 
