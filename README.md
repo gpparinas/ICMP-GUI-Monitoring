@@ -1,140 +1,137 @@
 # Network Health Monitor Pro
+
 This repository contains a Python-based GUI application for monitoring the status of network devices and web services using ICMP ping and HTTP requests. The application provides real-time monitoring, alerting, and logging for network administrators.
 
-# Description
-The Ping_Monitoring.py script is now a full-featured Network Health Monitor Pro application with the following features:
+## Description
 
-Real-time Monitoring: Continuously monitors the status of network devices and web services.
+The `Ping_Monitoring.py` script is now a full-featured **Network Health Monitor Pro** application with the following features:
 
-GUI Interface: Built with tkinter for a user-friendly experience.
-
-Dynamic Configuration: Uses a config.json file to manage IP addresses and web services.
-
-Alert System: Provides visual and console alerts for service outages or performance degradation.
-
-Logging: Automatically logs monitoring results to a file for historical analysis.
-
-Customizable: Easily add or remove devices and services via the config.json file.
+- **Real-time Monitoring:** Continuously monitors the status of network devices and web services.
+- **GUI Interface:** Built with `tkinter` for a user-friendly experience.
+- **Dynamic Configuration:** Uses a `config.json` file to manage IP addresses and web services.
+- **Alert System:** Provides visual and console alerts for service outages or performance degradation.
+- **Logging:** Automatically logs monitoring results to a file for historical analysis.
+- **Customizable:** Easily add or remove devices and services via the `config.json` file.
 
 ## Requirements
-Python 3.x
 
-# External Libraries:
+### Python
 
-ping3 (for ICMP ping functionality)
+- Python 3.x
 
-requests (for HTTP requests to web services)
+### External Libraries
 
-validators (for URL validation)
+- [`ping3`](https://pypi.org/project/ping3/) (for ICMP ping functionality)
+- [`requests`](https://pypi.org/project/requests/) (for HTTP requests to web services)
+- [`validators`](https://pypi.org/project/validators/) (for URL validation)
 
-Standard Libraries:
+### Standard Libraries
 
-os
-
-json
-
-tkinter
-
-datetime
-
-threading
+- `os`
+- `json`
+- `tkinter`
+- `datetime`
+- `threading`
 
 ## Installation
-Clone this repository to your local machine:
 
-bash
-Copy
-git clone https://github.com/yourusername/PingMonitoring.git
-cd PingMonitoring
-Install Python 3.x if not already installed. Download it from python.org.
+1. **Clone this repository to your local machine:**
 
-# Install required libraries:
+    ```bash
+    git clone https://github.com/yourusername/PingMonitoring.git
+    cd PingMonitoring
+    ```
 
-bash
-Copy
-`pip install ping3 requests validators`
-Create a config.json file in the project directory with the following structure:
+2. **Install Python 3.x** if not already installed. Download it from [python.org](https://www.python.org/).
 
-`json`
-Copy
-`{
-    "ip_addresses": {
-        "Google DNS": "8.8.8.8",
-        "PLDT Gateway": "58.69.0.89",
-        "Cloud Server": "157.197.66.126"
-    },
-    "web_services": {
-        "AWS Console": "https://aws.amazon.com",
-        "Azure Portal": "https://portal.azure.com",
-        "GCP Console": "https://console.cloud.google.com"
-    },
-    "alert_threshold": 200
-}`
+3. **Install required libraries:**
+
+    ```bash
+    pip install ping3 requests validators
+    ```
+
+4. **Create a `config.json` file** in the project directory with the following structure:
+
+    ```json
+    {
+        "ip_addresses": {
+            "Google DNS": "8.8.8.8",
+            "PLDT Gateway": "58.69.0.89",
+            "Cloud Server": "157.197.66.126"
+        },
+        "web_services": {
+            "AWS Console": "https://aws.amazon.com",
+            "Azure Portal": "https://portal.azure.com",
+            "GCP Console": "https://console.cloud.google.com"
+        },
+        "alert_threshold": 200
+    }
+    ```
+
 ## Usage
-Run the application:
 
-bash
-Copy
-`python Ping_Monitoring.py`
-## Application Features:
+1. **Run the application:**
 
-Network Devices Tab: Displays the status of IP addresses (ping results).
+    ```bash
+    python Ping_Monitoring.py
+    ```
 
-Web Services Tab: Shows the status of web services (HTTP response times).
+## Application Features
 
-Alert Panel: Lists active alerts for service outages or performance issues.
+- **Network Devices Tab:** Displays the status of IP addresses (ping results).
+- **Web Services Tab:** Shows the status of web services (HTTP response times).
+- **Alert Panel:** Lists active alerts for service outages or performance issues.
+- **Control Panel:** Provides buttons for manual refresh, history reports, and settings.
 
-Control Panel: Provides buttons for manual refresh, history reports, and settings.
+### Customize Monitoring
 
-Customize Monitoring:
+- **Edit the `config.json` file** to add or remove devices and services.
+- **Adjust the `alert_threshold`** value to change the response time threshold for alerts.
 
-Edit the config.json file to add or remove devices and services.
+### Logs
 
-Adjust the alert_threshold value to change the response time threshold for alerts.
+- Monitoring logs are saved to `monitor.log` in the project directory.
 
-Logs:
+### Screenshot
 
-Monitoring logs are saved to monitor.log in the project directory.
-
-Screenshot
-
-Network Health Monitor Pro
-(Replace with an actual screenshot of the application once available.)
+![Network Health Monitor Pro](path/to/your/screenshot.png)  
+*(Replace with an actual screenshot of the application once available.)*
 
 ## Contributing
+
 Contributions are welcome! Please follow these steps:
 
-Fork this repository.
+1. **Fork this repository.**
 
-Create a new branch for your feature or bug fix:
+2. **Create a new branch** for your feature or bug fix:
 
-bash
-Copy
-`git checkout -b feature/your-feature-name`
-Commit your changes:
+    ```bash
+    git checkout -b feature/your-feature-name
+    ```
 
-bash
-Copy
-`git commit -m "Add your message here"`
-Push to the branch:
+3. **Commit your changes:**
 
-bash
-Copy
-`git push origin feature/your-feature-name`
-Submit a pull request.
+    ```bash
+    git commit -m "Add your message here"
+    ```
 
-# License
-This project is licensed under the MIT License - see the LICENSE file for details.
+4. **Push to the branch:**
 
-# What We Did Today
-Upgraded the Script: Transformed the basic ping monitoring script into a full GUI application.
+    ```bash
+    git push origin feature/your-feature-name
+    ```
 
-Added Web Service Monitoring: Included HTTP request functionality to monitor web services.
+5. **Submit a pull request.**
 
-Dynamic Configuration: Implemented a config.json file for easy customization of devices and services.
+## License
 
-Improved UI/UX: Designed a professional and user-friendly interface using tkinter.
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
 
-Added Logging: Implemented log file generation for historical monitoring data.
+## What We Did Today
 
-Enhanced Error Handling: Added robust error handling for configuration and monitoring tasks.
+- **Upgraded the Script:** Transformed the basic ping monitoring script into a full GUI application.
+- **Added Web Service Monitoring:** Included HTTP request functionality to monitor web services.
+- **Dynamic Configuration:** Implemented a `config.json` file for easy customization of devices and services.
+- **Improved UI/UX:** Designed a professional and user-friendly interface using `tkinter`.
+- **Added Logging:** Implemented log file generation for historical monitoring data.
+- **Enhanced Error Handling:** Added robust error handling for configuration and monitoring tasks.
