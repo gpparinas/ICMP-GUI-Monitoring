@@ -1,20 +1,20 @@
-#Network Health Monitor Pro
+# Network Health Monitor Pro
 This repository contains a Python-based GUI application for monitoring the status of network devices and web services using ICMP ping and HTTP requests. The application provides real-time monitoring, alerting, and logging for network administrators.
 
-## Description
+# Description
 The Ping_Monitoring.py script is now a full-featured Network Health Monitor Pro application with the following features:
 
-## Real-time Monitoring: Continuously monitors the status of network devices and web services.
+Real-time Monitoring: Continuously monitors the status of network devices and web services.
 
-## GUI Interface: Built with tkinter for a user-friendly experience.
+GUI Interface: Built with tkinter for a user-friendly experience.
 
-## Dynamic Configuration: Uses a config.json file to manage IP addresses and web services.
+Dynamic Configuration: Uses a config.json file to manage IP addresses and web services.
 
-## Alert System: Provides visual and console alerts for service outages or performance degradation.
+Alert System: Provides visual and console alerts for service outages or performance degradation.
 
-## Logging: Automatically logs monitoring results to a file for historical analysis.
+Logging: Automatically logs monitoring results to a file for historical analysis.
 
-## Customizable: Easily add or remove devices and services via the config.json file.
+Customizable: Easily add or remove devices and services via the config.json file.
 
 ## Requirements
 Python 3.x
@@ -57,7 +57,7 @@ Create a config.json file in the project directory with the following structure:
 
 json
 Copy
-{
+`{
     "ip_addresses": {
         "Google DNS": "8.8.8.8",
         "PLDT Gateway": "58.69.0.89",
@@ -69,8 +69,8 @@ Copy
         "GCP Console": "https://console.cloud.google.com"
     },
     "alert_threshold": 200
-}
-#Usage
+}`
+## Usage
 Run the application:
 
 bash
@@ -78,21 +78,21 @@ Copy
 python Ping_Monitoring.py
 ## Application Features:
 
-## Network Devices Tab: Displays the status of IP addresses (ping results).
+Network Devices Tab: Displays the status of IP addresses (ping results).
 
-## Web Services Tab: Shows the status of web services (HTTP response times).
+Web Services Tab: Shows the status of web services (HTTP response times).
 
-##Alert Panel: Lists active alerts for service outages or performance issues.
+Alert Panel: Lists active alerts for service outages or performance issues.
 
-## Control Panel: Provides buttons for manual refresh, history reports, and settings.
+Control Panel: Provides buttons for manual refresh, history reports, and settings.
 
-## Customize Monitoring:
+Customize Monitoring:
 
 Edit the config.json file to add or remove devices and services.
 
 Adjust the alert_threshold value to change the response time threshold for alerts.
 
-## Logs:
+Logs:
 
 Monitoring logs are saved to monitor.log in the project directory.
 
@@ -127,14 +127,14 @@ Submit a pull request.
 This project is licensed under the MIT License - see the LICENSE file for details.
 
 # What We Did Today
-##Upgraded the Script: Transformed the basic ping monitoring script into a full GUI application.
+Upgraded the Script: Transformed the basic ping monitoring script into a full GUI application.
 
-##Added Web Service Monitoring: Included HTTP request functionality to monitor web services.
+Added Web Service Monitoring: Included HTTP request functionality to monitor web services.
 
-##Dynamic Configuration: Implemented a config.json file for easy customization of devices and services.
+Dynamic Configuration: Implemented a config.json file for easy customization of devices and services.
 
-##Improved UI/UX: Designed a professional and user-friendly interface using tkinter.
+Improved UI/UX: Designed a professional and user-friendly interface using tkinter.
 
-##Added Logging: Implemented log file generation for historical monitoring data.
+Added Logging: Implemented log file generation for historical monitoring data.
 
-##Enhanced Error Handling: Added robust error handling for configuration and monitoring tasks.
+Enhanced Error Handling: Added robust error handling for configuration and monitoring tasks.
