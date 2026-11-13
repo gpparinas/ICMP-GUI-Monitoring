@@ -1,137 +1,215 @@
-# Network Health Monitor Pro
+# Network Health Monitor
 
-This repository contains a Python-based GUI application for monitoring the status of network devices and web services using ICMP ping and HTTP requests. The application provides real-time monitoring, alerting, and logging for network administrators.
+Self-hosted uptime monitoring for small networks. It checks your routers, servers, printers
+and websites around the clock, keeps the history, and tells you by email or chat when
+something goes down and when it comes back.
 
-## Description
+It runs as one small program on any always-on machine (a spare PC, a NAS, a Raspberry Pi,
+a small VM) and is used from a web browser. There is no cloud account, no agent to install on
+the devices you monitor, and no per-device licence.
 
-The `Ping_Monitoring.py` script is now a full-featured **Network Health Monitor Pro** application with the following features:
+![Dashboard](images/dashboard.png)
 
-- **Real-time Monitoring:** Continuously monitors the status of network devices and web services.
-- **GUI Interface:** Built with `tkinter` for a user-friendly experience.
-- **Dynamic Configuration:** Uses a `config.json` file to manage IP addresses and web services.
-- **Alert System:** Provides visual and console alerts for service outages or performance degradation.
-- **Logging:** Automatically logs monitoring results to a file for historical analysis.
-- **Customizable:** Easily add or remove devices and services via the `config.json` file.
+## What it does
 
-## Requirements
+- **Four kinds of checks**
+  - **Ping (ICMP)**: is a device reachable? Routers, switches, access points, printers.
+  - **TCP port**: is a service accepting connections? Remote desktop, file shares, databases, mail.
+  - **Website / HTTP(S)**: does a page load with the right status code and, optionally, contain
+    the text you expect? Warns before the TLS certificate expires.
+  - **DNS lookup**: does a name resolve, optionally to the address you expect?
+- **Alerts that are not noisy.** A failure must repeat (two retries by default) before anyone
+  is told, so one dropped packet never sends an alert. Recovery is reported at once, with how
+  long the outage lasted.
+- **Alert channels:** email (SMTP), Slack, Microsoft Teams, Discord, Telegram and a generic
+  JSON webhook. Each has a "Send test" button.
+- **History and reports:** response-time charts for the last hour, day, week and month, uptime
+  percentages, an incident log, and a CSV uptime report for Excel or Google Sheets.
+- **Everything is managed in the browser.** Add, edit, pause and delete monitors and group
+  them (Network, Servers, Websites...). No config files to edit.
+- **Wall-screen mode:** optionally show the dashboard read-only without signing in.
+- Light and dark themes; works on a phone.
 
-### Python
+![Monitor detail](images/monitor.png)
 
-- Python 3.x
+## Quick start
 
-### External Libraries
+You need Python 3.10 or newer.
 
-- [`ping3`](https://pypi.org/project/ping3/) (for ICMP ping functionality)
-- [`requests`](https://pypi.org/project/requests/) (for HTTP requests to web services)
-- [`validators`](https://pypi.org/project/validators/) (for URL validation)
+```bash
+git clone https://github.com/gpparinas/ICMP-GUI-Monitoring.git
+```
 
-### Standard Libraries
+```bash
+cd ICMP-GUI-Monitoring
+```
 
-- `os`
-- `json`
-- `tkinter`
-- `datetime`
-- `threading`
+```bash
+pip install .
+```
 
-## Installation
+```bash
+netmon run --open
+```
 
-1. **Clone this repository to your local machine:**
+The dashboard opens at <http://localhost:8080>. On the first visit you choose an admin
+password, then add your first monitor.
 
-    ```bash
-    git clone https://github.com/yourusername/PingMonitoring.git
-    cd PingMonitoring
-    ```
+By default the dashboard is only reachable from the machine it runs on. To use it from other
+computers on your network:
 
-2. **Install Python 3.x** if not already installed. Download it from [python.org](https://www.python.org/).
+```bash
+netmon run --host 0.0.0.0
+```
 
-3. **Install required libraries:**
+Then browse to `http://<that-machine's-IP>:8080`.
 
-    ```bash
-    pip install ping3 requests validators
-    ```
+### Docker
 
-4. **Create a `config.json` file** in the project directory with the following structure:
+```bash
+docker compose up -d
+```
 
-    ```json
-    {
-        "ip_addresses": {
-            "Google DNS": "8.8.8.8",
-            "PLDT Gateway": "58.69.0.89",
-            "Cloud Server": "157.197.66.126"
-        },
-        "web_services": {
-            "AWS Console": "https://aws.amazon.com",
-            "Azure Portal": "https://portal.azure.com",
-            "GCP Console": "https://console.cloud.google.com"
-        },
-        "alert_threshold": 200
-    }
-    ```
+Data is kept in the `netmon-data` volume. The dashboard is at <http://localhost:8080>.
 
-## Usage
+## Running it permanently
 
-1. **Run the application:**
+Monitoring is only useful if it is always running, so install it as a service on a machine
+that stays on.
 
-    ```bash
-    python Ping_Monitoring.py
-    ```
+**Linux (systemd):** see [`deploy/netmon.service`](deploy/netmon.service). The steps are in
+the comments at the top of the file.
 
-## Application Features
+**Windows:** install with `pip install .` and create a scheduled task that runs at startup.
+From an Administrator command prompt (adjust the path to where `netmon.exe` was installed;
+`where netmon` shows it):
 
-- **Network Devices Tab:** Displays the status of IP addresses (ping results).
-- **Web Services Tab:** Shows the status of web services (HTTP response times).
-- **Alert Panel:** Lists active alerts for service outages or performance issues.
-- **Control Panel:** Provides buttons for manual refresh, history reports, and settings.
+```bat
+schtasks /Create /TN "Network Health Monitor" /SC ONSTART /RU SYSTEM /TR "\"C:\Path\To\netmon.exe\" --data-dir C:\ProgramData\netmon run --host 0.0.0.0"
+```
 
-### Customize Monitoring
+**Docker:** the compose file already restarts the container automatically.
 
-- **Edit the `config.json` file** to add or remove devices and services.
-- **Adjust the `alert_threshold`** value to change the response time threshold for alerts.
+## Upgrading from version 1
 
-### Logs
+Version 1 was a desktop window (`Ping_Monitoring.py`) that read `config.json`. Your devices
+and websites carry over:
 
-- Monitoring logs are saved to `monitor.log` in the project directory.
+```bash
+netmon import config.json
+```
 
-### Screenshot
+or use **Settings → Reports and backup → Import monitors** in the dashboard. Entries under
+`ip_addresses` become ping monitors in a "Network Devices" group, entries under
+`web_services` become website monitors in "Web Services", and `alert_threshold` becomes the
+slow-response warning. The old sample file is kept at
+[`examples/config.v1.json`](examples/config.v1.json).
 
-![Network Health Monitor Pro](images/screenshot_net.png)  
-![Network Health Monitor Pro 2](images/screenshot_web.png)
+## Command line
 
-## Contributing
+| Command | What it does |
+| --- | --- |
+| `netmon run [--host H] [--port P] [--open]` | Start the monitor and dashboard (the default command). |
+| `netmon import FILE` | Add monitors from an export or a version 1 `config.json`. |
+| `netmon export [FILE]` | Write all monitor definitions as JSON (a backup you can re-import). |
+| `netmon set-password` | Set or reset the admin password, for example if it was forgotten. |
 
-Contributions are welcome! Please follow these steps:
+`--data-dir DIR` goes before the command (`netmon --data-dir /srv/netmon run`) and chooses
+where the database and log file live.
 
-1. **Fork this repository.**
+| Environment variable | Default | Purpose |
+| --- | --- | --- |
+| `NETMON_HOST` | `127.0.0.1` | Address to listen on. |
+| `NETMON_PORT` | `8080` | Port to listen on. |
+| `NETMON_DATA_DIR` | per-user data folder | Where `netmon.db` and `netmon.log` are stored. |
+| `NETMON_ADMIN_PASSWORD` | unset | Sets the admin password on first start, instead of the browser setup screen. |
 
-2. **Create a new branch** for your feature or bug fix:
+## How status is decided
 
-    ```bash
-    git checkout -b feature/your-feature-name
-    ```
+| Status | Meaning |
+| --- | --- |
+| **Up** | The last check passed. |
+| **Degraded** | Reachable, but slower than the monitor's "slow response" threshold, or its TLS certificate is about to expire. |
+| **Down** | The check failed, and kept failing through all retries. |
+| **Paused** | Checking is switched off for this monitor. |
+| **Pending** | Waiting for the first result. |
 
-3. **Commit your changes:**
+While a failure is unconfirmed the monitor is re-checked every 10 seconds, so with the
+default of two retries an outage is confirmed in roughly 20 to 30 seconds. Uptime percentages
+count degraded checks as reachable.
 
-    ```bash
-    git commit -m "Add your message here"
-    ```
+Detailed check results are kept for 14 days (configurable in Settings). Hourly summaries are
+kept for over a year, so monthly and yearly uptime figures survive the clean-up.
 
-4. **Push to the branch:**
+## Notes on ping
 
-    ```bash
-    git push origin feature/your-feature-name
-    ```
+Sending ICMP normally needs special rights. The monitor picks the best method available and
+logs which one it chose at start-up (`ICMP mode: ...`):
 
-5. **Submit a pull request.**
+- **Linux and macOS:** unprivileged ICMP sockets where the system allows them, raw sockets when
+  running as root or with `CAP_NET_RAW` (the systemd unit grants this), otherwise the system
+  `ping` command.
+- **Windows:** the built-in `ping` command, so no Administrator rights are needed.
+
+![Settings](images/settings-dark.png)
+
+## Security
+
+- All changes need the admin password. Passwords are stored as scrypt hashes; sessions are
+  HttpOnly, SameSite=Strict cookies; repeated wrong passwords are throttled.
+- The first person to open a fresh install chooses the admin password. On a shared network,
+  either do that straight away or set `NETMON_ADMIN_PASSWORD` before the first start.
+- SMTP passwords, bot tokens and webhook URLs are stored in the local database so alerts can
+  be sent. They are never sent back to the browser. Protect the data folder like any other
+  file containing credentials.
+- The built-in server speaks plain HTTP. If the dashboard must be reachable from the internet,
+  put it behind a reverse proxy with HTTPS (Caddy, nginx, Traefik) and make sure the proxy
+  passes the original `Host` header.
+- "Show the dashboard without signing in" exposes monitor names, addresses and status,
+  read-only, to anyone who can reach the page. It is off by default.
+
+## Development
+
+```bash
+pip install -e ".[dev]"
+```
+
+```bash
+pytest
+```
+
+```bash
+ruff check .
+```
+
+Layout:
+
+```
+src/netmon/
+  checks.py     ping, TCP, HTTP and DNS checks
+  engine.py     scheduler, up/degraded/down state machine, incidents
+  notify.py     email, Slack, Teams, Discord, Telegram, webhook delivery
+  db.py         SQLite storage, hourly roll-ups, retention
+  api.py        FastAPI application (JSON API + static dashboard)
+  auth.py       password hashing, sessions, login throttling
+  importer.py   export / import, including the version 1 config.json
+  cli.py        the netmon command
+  static/       dashboard (plain HTML, CSS and JavaScript, no build step)
+tests/          pytest suite
+```
+
+The dashboard has no external dependencies and makes no requests to other sites, so it works
+on a network with no internet access.
+
+## Ideas for later
+
+- Maintenance windows (planned downtime that does not alert or count against uptime).
+- One combined alert when the monitoring machine itself loses its network, instead of one per monitor.
+- Choosing which channels each monitor alerts, and repeat reminders for long outages.
+- Several user accounts with read-only and admin roles.
+- SNMP checks (bandwidth, printer toner, UPS battery).
+- A public status page for customers.
 
 ## License
 
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
-
-## What We Did Today
-
-- **Upgraded the Script:** Transformed the basic ping monitoring script into a full GUI application.
-- **Added Web Service Monitoring:** Included HTTP request functionality to monitor web services.
-- **Dynamic Configuration:** Implemented a `config.json` file for easy customization of devices and services.
-- **Improved UI/UX:** Designed a professional and user-friendly interface using `tkinter`.
-- **Added Logging:** Implemented log file generation for historical monitoring data.
-- **Enhanced Error Handling:** Added robust error handling for configuration and monitoring tasks.
+MIT. See [LICENSE](LICENSE).

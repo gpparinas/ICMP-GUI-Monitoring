@@ -1,0 +1,23 @@
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+build/
+dist/
+.pytest_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+
+# Runtime data (database, logs)
+data/
+*.db
+*.db-wal
+*.db-shm
+*.log
+
+.env
+.idea/
+.vscode/
+.DS_Store

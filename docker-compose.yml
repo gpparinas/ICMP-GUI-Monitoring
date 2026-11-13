@@ -1,0 +1,18 @@
+services:
+  netmon:
+    build: .
+    container_name: netmon
+    restart: unless-stopped
+    ports:
+      - "8080:8080"
+    volumes:
+      - netmon-data:/data
+    # Optional: set the admin password here instead of in the browser on first visit.
+    # environment:
+    #   NETMON_ADMIN_PASSWORD: "change-me-please"
+    # Lets the non-root container user send pings (already the default on recent Docker).
+    sysctls:
+      net.ipv4.ping_group_range: "0 2147483647"
+
+volumes:
+  netmon-data:

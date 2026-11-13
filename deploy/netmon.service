@@ -1,0 +1,35 @@
+# systemd unit for Network Health Monitor.
+#
+#   sudo useradd --system --create-home --home-dir /var/lib/netmon netmon
+#   sudo python3 -m venv /opt/netmon && sudo /opt/netmon/bin/pip install /path/to/this/repo
+#   sudo cp deploy/netmon.service /etc/systemd/system/
+#   sudo systemctl enable --now netmon
+#
+# Then open http://<this-machine>:8080 and choose an admin password.
+
+[Unit]
+Description=Network Health Monitor
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+User=netmon
+Group=netmon
+Environment=NETMON_DATA_DIR=/var/lib/netmon
+Environment=NETMON_HOST=0.0.0.0
+Environment=NETMON_PORT=8080
+ExecStart=/opt/netmon/bin/netmon run
+Restart=on-failure
+RestartSec=5
+
+# Lets the service send pings without running as root.
+AmbientCapabilities=CAP_NET_RAW
+CapabilityBoundingSet=CAP_NET_RAW
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+PrivateTmp=true
+ReadWritePaths=/var/lib/netmon
+
+[Install]
+WantedBy=multi-user.target
