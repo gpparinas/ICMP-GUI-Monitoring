@@ -184,20 +184,40 @@ function loginView() {
 
 // --- dashboard --------------------------------------------------------------------
 
-function headline(counts, total) {
-  const attention = counts.down + counts.degraded;
-  let kind = "up", title = "All systems operational";
-  if (!total) { kind = "neutral"; title = "No monitors yet"; }
-  else if (counts.down) { kind = "down"; title = `${counts.down} monitor${counts.down > 1 ? "s are" : " is"} down`; }
-  else if (counts.degraded) { kind = "degraded"; title = `${counts.degraded} monitor${counts.degraded > 1 ? "s need" : " needs"} attention`; }
-  else if (counts.pending) { kind = "neutral"; title = "Waiting for first results"; }
-  else if (counts.up === 0) { kind = "neutral"; title = "All monitors are paused"; }
+const plural = (n, word) => `${n} ${word}${n === 1 ? "" : "s"}`;
+
+/** Page heading: what is wrong right now, by name, and overall 24-hour uptime. */
+function headline(data) {
+  const { counts, monitors } = data;
+  const total = monitors.length;
   const active = total - counts.paused;
-  const sub = !total ? "Add your first monitor to start watching your network."
-    : `${counts.up} of ${active} active monitor${active === 1 ? "" : "s"} up${attention && counts.down && counts.degraded ? `, ${counts.degraded} degraded` : ""}`;
+  let kind = "up", title = active === 1 ? "Your monitor is up" : `All ${active} monitors up`;
+  if (!total) { kind = null; title = "No monitors yet"; }
+  else if (counts.down) { kind = "down"; title = `${plural(counts.down, "monitor")} down`; }
+  else if (counts.degraded) { kind = "degraded"; title = `${plural(counts.degraded, "monitor")} degraded`; }
+  else if (counts.pending) { kind = "pending"; title = "Waiting for first results"; }
+  else if (!active) { kind = "paused"; title = "All monitors are paused"; }
+
+  // Name the monitors that need attention, worst first, so nobody has to scan the list.
+  const now = data.now || Date.now() / 1000;
+  const issues = monitors.filter((m) => m.status === "down").concat(monitors.filter((m) => m.status === "degraded"));
+  const shown = issues.slice(0, 4);
+  const sub = !total ? h("p", null, "Add your first monitor to start watching your network.")
+    : issues.length ? h("p", { class: "issues" },
+      shown.map((m) => h("span", null,
+        h("a", { href: `#/monitor/${m.id}` }, m.name),
+        ` ${m.status} ${m.since ? `for ${fmtDuration(now - m.since)}` : ""}`,
+        m.detail && h("span", { class: "muted" }, ` · ${m.detail}`))),
+      issues.length > shown.length && h("span", { class: "muted" }, `and ${issues.length - shown.length} more`))
+      : null;
+
   return h("div", { class: "headline" },
-    h("div", { class: `badge ${kind}` }, icon(kind === "neutral" ? "pending" : kind, "")),
-    h("div", null, h("h1", null, title), h("p", null, sub)));
+    h("div", { class: "grow" },
+      h("h1", { class: kind ? `ic-${kind}` : "" }, kind && icon(kind), h("span", null, title)),
+      sub),
+    total > 0 && h("div", { class: "uptime" },
+      h("div", { class: "num" }, fmtUptime(data.uptime_24h)),
+      h("div", { class: "muted" }, "uptime, last 24 hours")));
 }
 
 function tile(label, value, note, statusIcon) {
@@ -222,11 +242,12 @@ function beats(monitor) {
 function monitorRow(m) {
   const latency = m.status === "down" || m.status === "paused" ? "—" : fmtLatency(m.latency_ms);
   return h("a", { class: `mrow is-${m.status}`, href: `#/monitor/${m.id}` },
-    statusBadge(m.status),
+    h("span", { class: `status ${m.status}`, title: STATUS_LABELS[m.status] }, icon(m.status), h("span", { class: "sr-only" }, STATUS_LABELS[m.status])),
     h("div", { class: "grow" },
       h("div", { class: "name truncate" }, m.name),
-      h("div", { class: "target" }, h("span", { class: "pill" }, TYPE_LABELS[m.type]),
-        h("span", { class: "truncate" }, m.status === "down" && m.detail ? `${m.target} — ${m.detail}` : m.target))),
+      h("div", { class: "target" }, h("span", { class: "kind" }, TYPE_LABELS[m.type]),
+        h("span", { class: "addr truncate" }, m.target),
+        m.status === "down" && m.detail && h("span", { class: "detail truncate" }, m.detail))),
     h("div", { class: "col-beats" }, beats(m)),
     h("div", { class: "right num" }, latency),
     h("div", { class: "right num col-24h" }, fmtUptime(m.uptime["24h"])),
@@ -256,13 +277,7 @@ function dashboardView() {
     const { counts, monitors } = data;
     hideTip();
 
-    clear(top, headline(counts, monitors.length),
-      h("div", { class: "tiles" },
-        tile("Up", counts.up, null, "up"),
-        tile("Degraded", counts.degraded, null, "degraded"),
-        tile("Down", counts.down, null, "down"),
-        tile("Paused", counts.paused, null, "paused"),
-        tile("Uptime, last 24 hours", fmtUptime(data.uptime_24h), "Average across all monitors")));
+    clear(top, headline(data));
 
     const filters = [["all", "All", monitors.length], ["down", "Down", counts.down], ["degraded", "Degraded", counts.degraded], ["up", "Up", counts.up], ["paused", "Paused", counts.paused]];
     clear(chips, filters.map(([key, label, count]) =>
@@ -293,17 +308,14 @@ function dashboardView() {
       if (!groups.has(key)) groups.set(key, []);
       groups.get(key).push(m);
     }
-    clear(list, [...groups].map(([name, items]) => {
-      const down = items.filter((m) => m.status === "down").length;
-      return h("section", { class: "group" },
-        h("div", { class: "group-head" }, h("h2", null, name),
-          h("span", null, `${items.length} monitor${items.length === 1 ? "" : "s"}${down ? ` · ${down} down` : ""}`)),
-        h("div", { class: "card" },
-          h("div", { class: "mrow head" }, h("div", null, "Status"), h("div", null, "Monitor"),
-            h("div", { class: "right col-beats" }, "Recent checks"), h("div", { class: "right" }, "Response"),
-            h("div", { class: "right col-24h" }, "24 hours"), h("div", { class: "right col-30d" }, "30 days")),
-          items.map(monitorRow)));
-    }));
+    // One table, one header; groups are labelled rows inside it.
+    clear(list, h("div", { class: "card monitors" },
+      h("div", { class: "mrow head" }, h("div"), h("div", null, "Monitor"),
+        h("div", { class: "right col-beats" }, "Last 40 checks"), h("div", { class: "right" }, "Response"),
+        h("div", { class: "right col-24h" }, "24 h"), h("div", { class: "right col-30d" }, "30 d")),
+      [...groups].map(([name, items]) => h("section", { class: "group", "aria-label": name },
+        h("h2", { class: "group-head" }, name, h("span", { class: "muted num" }, items.length)),
+        items.map(monitorRow)))));
   }
 
   return {
