@@ -4,11 +4,11 @@ import { renderChart, renderHistoryTable } from "./chart.js";
 import { CHANNEL_TYPES, channelDialog, monitorDialog } from "./forms.js";
 import {
   STATUS_LABELS, api, checkbox, clear, confirmDialog, field, fmtAgo, fmtClock, fmtDateTime, fmtDuration,
-  fmtInterval, fmtLatency, fmtUptime, h, hideTip, icon, installTips, openDialog, statusBadge, toast,
+  fmtInterval, fmtLatency, fmtUptime, h, hideTip, icon, installTips, openDialog, statusBadge, statusIcon, toast,
 } from "./util.js";
 
 const POLL_MS = 5000;
-const TYPE_LABELS = { icmp: "PING", tcp: "TCP", http: "HTTP", dns: "DNS" };
+const TYPE_LABELS = { icmp: "Ping", tcp: "TCP", http: "HTTP", dns: "DNS" };
 
 const state = {
   session: null,      // { setup_required, authenticated, public_view, site_title, version }
@@ -68,7 +68,7 @@ function updateLive() {
   if (!el) return;
   const stale = state.lastOk && Date.now() - state.lastOk > POLL_MS * 3;
   el.classList.toggle("stale", Boolean(stale));
-  el.lastChild.textContent = !state.lastOk ? "Connecting…" : stale ? "Connection lost" : `Live · ${fmtClock(state.lastOk / 1000)}`;
+  el.lastChild.textContent = !state.lastOk ? "Connecting…" : stale ? "Connection lost" : `Updated ${fmtClock(state.lastOk / 1000)}`;
 }
 
 async function signOut() {
@@ -97,6 +97,7 @@ async function route() {
   if (s.setup_required) view = setupView();
   else if (name === "login" && !s.authenticated) view = loginView();
   else if (!canView) view = loginView();
+  else if (name === "wall") view = wallView();
   else if (name === "monitor" && arg) view = monitorView(Number(arg));
   else if (name === "incidents") view = incidentsView();
   else if (name === "settings" && s.authenticated) view = settingsView();
@@ -184,27 +185,101 @@ function loginView() {
 
 // --- dashboard --------------------------------------------------------------------
 
-function headline(counts, total) {
-  const attention = counts.down + counts.degraded;
-  let kind = "up", title = "All systems operational";
-  if (!total) { kind = "neutral"; title = "No monitors yet"; }
-  else if (counts.down) { kind = "down"; title = `${counts.down} monitor${counts.down > 1 ? "s are" : " is"} down`; }
-  else if (counts.degraded) { kind = "degraded"; title = `${counts.degraded} monitor${counts.degraded > 1 ? "s need" : " needs"} attention`; }
-  else if (counts.pending) { kind = "neutral"; title = "Waiting for first results"; }
-  else if (counts.up === 0) { kind = "neutral"; title = "All monitors are paused"; }
-  const active = total - counts.paused;
-  const sub = !total ? "Add your first monitor to start watching your network."
-    : `${counts.up} of ${active} active monitor${active === 1 ? "" : "s"} up${attention && counts.down && counts.degraded ? `, ${counts.degraded} degraded` : ""}`;
-  return h("div", { class: "headline" },
-    h("div", { class: `badge ${kind}` }, icon(kind === "neutral" ? "pending" : kind, "")),
-    h("div", null, h("h1", null, title), h("p", null, sub)));
+/** "13 minutes", "3 hours 5 minutes", "2 days": durations written out for sentences. */
+function spelledDuration(seconds) {
+  seconds = Math.max(0, Math.round(seconds));
+  const units = [["day", 86400], ["hour", 3600], ["minute", 60], ["second", 1]];
+  const parts = [];
+  for (const [name, size] of units) {
+    const value = Math.floor(seconds / size);
+    if (value) parts.push(`${value} ${name}${value === 1 ? "" : "s"}`);
+    seconds -= value * size;
+    if (parts.length === 2 || (parts.length && name === "minute")) break;
+  }
+  return parts.join(" ") || "a moment";
 }
 
-function tile(label, value, note, statusIcon) {
-  return h("div", { class: "card tile" },
-    h("div", { class: "label" }, statusIcon && icon(statusIcon, `icon ic-${statusIcon}`), label),
-    h("div", { class: "value" }, value),
-    note && h("div", { class: "note" }, note));
+function nameList(items) {
+  const names = items.map((m) => m.name);
+  if (names.length <= 2) return names.join(" and ");
+  return `${names.slice(0, 2).join(", ")} and ${names.length - 2} more`;
+}
+
+/** The sentence at the top: what is wrong, written as plainly as possible. */
+function headline(data) {
+  const { counts, monitors } = data;
+  const now = data.now;
+  const down = monitors.filter((m) => m.status === "down");
+  const degraded = monitors.filter((m) => m.status === "degraded");
+  const active = monitors.length - counts.paused;
+  let title, sub;
+  if (!monitors.length) {
+    title = "Nothing is being monitored yet";
+    sub = "Add a router, server, printer or website and it will be checked around the clock.";
+  } else if (down.length === 1) {
+    const m = down[0];
+    title = `${m.name} is down`;
+    sub = [h("b", null, m.detail || "Check failed"), `. Stopped answering ${spelledDuration(now - m.since)} ago.`];
+  } else if (down.length) {
+    title = `${down.length} monitors are down`;
+    sub = [h("b", null, nameList(down)), " stopped answering."];
+  } else if (degraded.length === 1) {
+    const m = degraded[0];
+    title = `${m.name} needs attention`;
+    sub = [h("b", null, m.detail || "Degraded"), `. For the last ${spelledDuration(now - m.since)}.`];
+  } else if (degraded.length) {
+    title = `${degraded.length} monitors need attention`;
+    sub = [h("b", null, nameList(degraded)), " are slow or have warnings."];
+  } else if (counts.pending) {
+    title = "Waiting for the first results";
+    sub = `${counts.pending} of ${active} monitors have not been checked yet.`;
+  } else if (!active) {
+    title = "All monitors are paused";
+    sub = "Nothing is being checked. Resume a monitor to start again.";
+  } else {
+    title = "Everything is up";
+    sub = `${active} monitor${active === 1 ? "" : "s"} answering. ${fmtUptime(data.uptime_24h)} uptime over the last 24 hours.`;
+  }
+  const problem = down.length || degraded.length;
+  if (problem && monitors.length > problem) {
+    const ok = counts.up;
+    sub = [sub, ` ${ok} other${ok === 1 ? " is" : "s are"} up.`];
+  }
+  return h("div", { class: "headline", role: "status", "aria-live": "polite" }, h("h1", null, title), h("p", null, sub));
+}
+
+function groupMonitors(monitors) {
+  const groups = new Map();
+  for (const m of monitors) {
+    const key = m.group || "Ungrouped";
+    if (!groups.has(key)) groups.set(key, []);
+    groups.get(key).push(m);
+  }
+  return groups;
+}
+
+function portTip(m, now) {
+  const state = m.status === "pending" ? "Waiting for the first check"
+    : m.status === "paused" ? "Paused"
+    : `${STATUS_LABELS[m.status]} for ${fmtDuration(now - m.since)}`;
+  const detail = m.status === "down" || m.status === "degraded" ? m.detail
+    : m.status === "up" ? fmtLatency(m.latency_ms) : "";
+  return [m.name, state, detail, m.target].filter(Boolean).join("|");
+}
+
+/** Every monitor as a port with a link light, one bank per group. */
+function patchPanel(data) {
+  const banks = [...groupMonitors(data.monitors)].map(([name, items]) => {
+    const down = items.filter((m) => m.status === "down").length;
+    return h("div", { class: "bank" },
+      h("div", { class: "bank-name" }, name,
+        h("span", null, down ? `${down} of ${items.length} down` : `${items.length} monitor${items.length === 1 ? "" : "s"}`)),
+      h("div", { class: "ports" }, items.map((m) =>
+        h("a", { class: `port ${m.status}`, href: `#/monitor/${m.id}`, "data-tip": portTip(m, data.now),
+          "aria-label": `${m.name}: ${STATUS_LABELS[m.status]}` },
+          h("i", { class: "led" }), icon(m.status, `socket ic-${m.status}`), h("span", { class: "label" }, m.name)))));
+  });
+  return h("section", { class: "panel patch-panel", "aria-label": "Status of every monitor" }, banks);
 }
 
 function beats(monitor) {
@@ -213,24 +288,34 @@ function beats(monitor) {
   const cells = [];
   for (let i = recent.length; i < slots; i++) cells.push(h("i"));
   for (const [ts, status, latency] of recent) {
-    const text = status === "down" ? "Check failed" : `${STATUS_LABELS[status]} · ${fmtLatency(latency)}`;
+    const text = status === "down" ? "Check failed" : `${STATUS_LABELS[status]}, ${fmtLatency(latency)}`;
     cells.push(h("i", { class: status, "data-tip": `${text}|${fmtDateTime(ts)}` }));
   }
-  return h("div", { class: "beats", role: "img", "aria-label": `Last ${recent.length} checks: ${recent.filter((r) => r[1] === "down").length} failed` }, cells);
+  const failed = recent.filter((r) => r[1] === "down").length;
+  return h("div", { class: "beats", role: "img", "aria-label": `Last ${recent.length} checks: ${failed} failed` }, cells);
 }
 
 function monitorRow(m) {
   const latency = m.status === "down" || m.status === "paused" ? "—" : fmtLatency(m.latency_ms);
+  const problem = (m.status === "down" || m.status === "degraded") && m.detail;
   return h("a", { class: `mrow is-${m.status}`, href: `#/monitor/${m.id}` },
-    statusBadge(m.status),
+    statusIcon(m.status),
     h("div", { class: "grow" },
       h("div", { class: "name truncate" }, m.name),
-      h("div", { class: "target" }, h("span", { class: "pill" }, TYPE_LABELS[m.type]),
-        h("span", { class: "truncate" }, m.status === "down" && m.detail ? `${m.target} — ${m.detail}` : m.target))),
+      h("div", { class: "target" },
+        h("span", { class: "kind" }, TYPE_LABELS[m.type]),
+        h("span", { class: "truncate" }, m.target),
+        problem && h("span", { class: "problem truncate" }, m.detail))),
     h("div", { class: "col-beats" }, beats(m)),
     h("div", { class: "right num" }, latency),
     h("div", { class: "right num col-24h" }, fmtUptime(m.uptime["24h"])),
     h("div", { class: "right num col-30d" }, fmtUptime(m.uptime["30d"])));
+}
+
+async function addMonitor() {
+  const groups = [...new Set((state.overview?.monitors || []).map((m) => m.group).filter(Boolean))];
+  const created = await monitorDialog(null, groups);
+  if (created) { toast(`${created.name} added`); await tick(); }
 }
 
 function dashboardView() {
@@ -240,15 +325,11 @@ function dashboardView() {
   const search = h("input", { class: "input", type: "search", placeholder: "Search monitors", value: state.search, "aria-label": "Search monitors",
     oninput: () => { state.search = search.value; renderList(); } });
   const chips = h("div", { class: "segmented", role: "group", "aria-label": "Filter by status" });
-  const add = admin && h("button", { class: "btn primary", onclick: addMonitor }, icon("plus"), "Add monitor");
-  const toolbar = h("div", { class: "toolbar" }, h("div", { class: "search" }, icon("search"), search), chips, h("span", { class: "grow" }), add);
+  const toolbar = h("div", { class: "toolbar" },
+    h("div", { class: "search" }, icon("search"), search), chips, h("span", { class: "grow" }),
+    h("a", { class: "btn ghost", href: "#/wall", title: "A full-screen view for a TV or spare monitor" }, icon("wall"), "Wall screen"),
+    admin && h("button", { class: "btn primary", onclick: addMonitor }, icon("plus"), "Add monitor"));
   clear(main, top, toolbar, list);
-
-  async function addMonitor() {
-    const groups = [...new Set((state.overview?.monitors || []).map((m) => m.group).filter(Boolean))];
-    const created = await monitorDialog(null, groups);
-    if (created) { toast(`${created.name} added`); await tick(); }
-  }
 
   function renderList() {
     const data = state.overview;
@@ -256,25 +337,18 @@ function dashboardView() {
     const { counts, monitors } = data;
     hideTip();
 
-    clear(top, headline(counts, monitors.length),
-      h("div", { class: "tiles" },
-        tile("Up", counts.up, null, "up"),
-        tile("Degraded", counts.degraded, null, "degraded"),
-        tile("Down", counts.down, null, "down"),
-        tile("Paused", counts.paused, null, "paused"),
-        tile("Uptime, last 24 hours", fmtUptime(data.uptime_24h), "Average across all monitors")));
+    clear(top, headline(data), monitors.length ? patchPanel(data) : null);
 
     const filters = [["all", "All", monitors.length], ["down", "Down", counts.down], ["degraded", "Degraded", counts.degraded], ["up", "Up", counts.up], ["paused", "Paused", counts.paused]];
     clear(chips, filters.map(([key, label, count]) =>
       h("button", { type: "button", "aria-pressed": String(state.filter === key), onclick: () => { state.filter = key; renderList(); } },
-        label, h("span", { class: "count num" }, count))));
+        label, h("span", { class: "count" }, count))));
     toolbar.hidden = !monitors.length;
 
     if (!monitors.length) {
-      clear(list, h("div", { class: "card empty" },
-        h("h2", null, "Nothing is being monitored yet"),
-        h("p", null, admin ? "Add a router, server, printer or website and it will be checked around the clock." : "Sign in to add monitors."),
-        admin && h("button", { class: "btn primary", onclick: addMonitor }, icon("plus"), "Add your first monitor")));
+      clear(list, admin
+        ? h("button", { class: "btn primary", onclick: addMonitor }, icon("plus"), "Add your first monitor")
+        : h("p", { class: "secondary" }, "Sign in to add monitors."));
       return;
     }
 
@@ -283,26 +357,19 @@ function dashboardView() {
       (state.filter === "all" || m.status === state.filter)
       && (!needle || `${m.name} ${m.target} ${m.group}`.toLowerCase().includes(needle)));
     if (!shown.length) {
-      clear(list, h("div", { class: "card empty" }, h("h2", null, "No monitors match"), h("p", null, "Try a different search or filter.")));
+      clear(list, h("div", { class: "empty" }, h("h2", null, "No monitors match"), h("p", null, "Try a different search, or choose All.")));
       return;
     }
 
-    const groups = new Map();
-    for (const m of shown) {
-      const key = m.group || "Ungrouped";
-      if (!groups.has(key)) groups.set(key, []);
-      groups.get(key).push(m);
-    }
-    clear(list, [...groups].map(([name, items]) => {
+    clear(list, [...groupMonitors(shown)].map(([name, items]) => {
       const down = items.filter((m) => m.status === "down").length;
       return h("section", { class: "group" },
         h("div", { class: "group-head" }, h("h2", null, name),
-          h("span", null, `${items.length} monitor${items.length === 1 ? "" : "s"}${down ? ` · ${down} down` : ""}`)),
-        h("div", { class: "card" },
-          h("div", { class: "mrow head" }, h("div", null, "Status"), h("div", null, "Monitor"),
-            h("div", { class: "right col-beats" }, "Recent checks"), h("div", { class: "right" }, "Response"),
-            h("div", { class: "right col-24h" }, "24 hours"), h("div", { class: "right col-30d" }, "30 days")),
-          items.map(monitorRow)));
+          h("span", null, `${items.length} monitor${items.length === 1 ? "" : "s"}${down ? `, ${down} down` : ""}`)),
+        h("div", { class: "mrow head" }, h("div", null, ""), h("div", null, "Monitor"),
+          h("div", { class: "right col-beats" }, "Last 40 checks"), h("div", { class: "right" }, "Response"),
+          h("div", { class: "right col-24h" }, "24 hours"), h("div", { class: "right col-30d" }, "30 days")),
+        items.map(monitorRow));
     }));
   }
 
@@ -314,6 +381,27 @@ function dashboardView() {
         renderTopbar();
       }
       renderList();
+    },
+  };
+}
+
+/** Full-screen panel for a TV on the office wall: headline and ports, nothing else. */
+function wallView() {
+  document.body.classList.add("wall");
+  const exit = (event) => { if (event.key === "Escape") location.hash = "#/"; };
+  document.addEventListener("keydown", exit);
+  return {
+    async refresh() {
+      const data = await api("/api/overview");
+      state.overview = data;
+      clear(main, headline(data), data.monitors.length ? patchPanel(data) : null,
+        h("div", { class: "wall-foot" },
+          h("span", null, `${data.site_title}. Updated ${fmtClock(data.now)}.`),
+          h("a", { href: "#/" }, "Leave wall screen")));
+    },
+    destroy() {
+      document.body.classList.remove("wall");
+      document.removeEventListener("keydown", exit);
     },
   };
 }
@@ -335,7 +423,7 @@ function monitorView(id) {
     head,
     h("div", { class: "filters" }, ranges),
     stats,
-    h("div", { class: "card" }, h("div", { class: "card-head" }, h("h2", { class: "grow" }, "Response time"), modes), chartHost),
+    h("section", { class: "panel" }, h("div", { class: "card-head" }, h("h2", { class: "grow" }, "Response time"), modes), chartHost),
     lower);
 
   const resize = new ResizeObserver(() => { if (history && mode === "chart") renderChart(chartHost, history); });
@@ -351,11 +439,13 @@ function monitorView(id) {
   function renderHistory() {
     if (!history) return;
     const s = history.summary;
-    clear(stats, h("div", { class: "tiles four" },
-      tile("Uptime", fmtUptime(s.uptime), `${s.checks.toLocaleString()} checks in this period`),
-      tile("Average response", fmtLatency(s.avg_ms)),
-      tile("Slowest response", fmtLatency(s.max_ms)),
-      tile("Uptime, last 30 days", fmtUptime(monitor?.uptime["30d"]), `7 days: ${fmtUptime(monitor?.uptime["7d"])}`)));
+    const figure = (label, value, note) => h("div", { class: "figure" },
+      h("div", { class: "label" }, label), h("div", { class: "value" }, value), note && h("div", { class: "note" }, note));
+    clear(stats, h("div", { class: "figures" },
+      figure("Uptime in this period", fmtUptime(s.uptime), `${s.checks.toLocaleString()} checks`),
+      figure("Average response", fmtLatency(s.avg_ms)),
+      figure("Slowest response", fmtLatency(s.max_ms)),
+      figure("Uptime, last 30 days", fmtUptime(monitor?.uptime["30d"]), `${fmtUptime(monitor?.uptime["7d"])} over 7 days`)));
     if (mode === "chart") renderChart(chartHost, history);
     else renderHistoryTable(chartHost, history);
   }
@@ -376,7 +466,9 @@ function monitorView(id) {
   function renderHead() {
     const m = monitor;
     const now = Date.now() / 1000;
-    const since = m.status === "pending" ? "Waiting for the first check" : `for ${fmtDuration(now - m.since)}`;
+    const since = m.status === "pending" ? "Waiting for the first check"
+      : m.status === "paused" ? `since ${fmtDateTime(m.since)}`
+      : `for ${fmtDuration(now - m.since)}`;
     const actions = admin && h("div", { class: "actions" },
       m.enabled && h("button", { class: "btn", onclick: () => act(() => api(`/api/monitors/${id}/check`, { method: "POST" }).then(() => new Promise((r) => setTimeout(r, 1200))), "Check started") }, icon("refresh"), "Check now"),
       h("button", { class: "btn", onclick: () => act(() => api(`/api/monitors/${id}/${m.enabled ? "pause" : "resume"}`, { method: "POST" }), m.enabled ? "Monitor paused" : "Monitor resumed") }, m.enabled ? "Pause" : "Resume"),
@@ -386,14 +478,16 @@ function monitorView(id) {
       h("div", { class: "page-head" },
         h("div", { class: "grow" }, h("h1", null, m.name),
           h("div", { class: "sub" }, h("span", { class: "pill" }, TYPE_LABELS[m.type]), h("span", null, m.target),
-            h("span", { class: "muted" }, `· every ${fmtInterval(m.interval)}${m.group ? ` · ${m.group}` : ""}`))),
+            h("span", { class: "muted" }, `Checked every ${fmtInterval(m.interval)}`),
+            m.group && h("span", { class: "muted" }, `In ${m.group}`))),
         actions),
-      h("div", { class: `statusline ${m.status}` }, statusBadge(m.status),
-        h("span", { class: "grow" }, since, m.detail && m.status !== "paused" ? ` — ${m.detail}` : ""),
+      h("div", { class: `statusline ${m.status}` }, statusIcon(m.status),
+        h("span", { class: "grow" }, h("span", { class: "state" }, STATUS_LABELS[m.status]), ` ${since}.`,
+          m.detail && m.status !== "paused" ? ` ${m.detail}.` : ""),
         h("span", { class: "muted num" }, m.last_check ? `Last check ${fmtAgo(m.last_check, now)}` : "")));
 
     lower.replaceChildren(
-      h("div", { class: "card" }, h("div", { class: "card-head" }, h("h2", null, "Incidents")),
+      h("section", null, h("h2", { class: "section-title" }, "Incidents"),
         m.incidents.length
           ? h("div", { class: "table-scroll" }, h("table", { class: "table" },
             h("thead", null, h("tr", null, h("th", null, "Problem"), h("th", null, "Started"), h("th", { class: "right" }, "Lasted"))),
@@ -401,8 +495,8 @@ function monitorView(id) {
               h("td", null, statusBadge(i.severity), h("div", { class: "muted" }, i.cause)),
               h("td", { class: "num" }, fmtDateTime(i.started_at)),
               h("td", { class: "num right" }, i.ended_at ? fmtDuration(i.ended_at - i.started_at) : "Ongoing"))))))
-          : h("div", { class: "empty" }, "No incidents recorded.")),
-      h("div", { class: "card" }, h("div", { class: "card-head" }, h("h2", null, "Latest checks")),
+          : h("p", { class: "empty" }, "No outages or slowdowns recorded.")),
+      h("section", null, h("h2", { class: "section-title" }, "Latest checks"),
         m.checks.length
           ? h("div", { class: "table-scroll capped" }, h("table", { class: "table" },
             h("thead", null, h("tr", null, h("th", null, "Time"), h("th", null, "Result"), h("th", { class: "right" }, "Response"))),
@@ -410,7 +504,7 @@ function monitorView(id) {
               h("td", { class: "num" }, fmtDateTime(c.ts)),
               h("td", null, h("div", { class: "row" }, statusBadge(c.state), c.detail && h("span", { class: "muted truncate" }, c.detail))),
               h("td", { class: "num right" }, fmtLatency(c.latency_ms)))))))
-          : h("div", { class: "empty" }, "No checks have run yet.")));
+          : h("p", { class: "empty" }, "No checks have run yet.")));
   }
 
   async function edit() {
@@ -462,10 +556,10 @@ function incidentsView() {
     async refresh() {
       const { incidents, now } = await api("/api/incidents");
       if (!incidents.length) {
-        clear(body, h("div", { class: "card empty" }, h("h2", null, "No incidents"), h("p", null, "Nothing has gone down since monitoring started.")));
+        clear(body, h("div", { class: "empty" }, h("h2", null, "No incidents"), h("p", null, "Nothing has gone down since monitoring started.")));
         return;
       }
-      clear(body, h("div", { class: "card table-scroll" }, h("table", { class: "table" },
+      clear(body, h("div", { class: "table-scroll" }, h("table", { class: "table" },
         h("thead", null, h("tr", null, h("th", null, "Problem"), h("th", null, "Monitor"), h("th", null, "Cause"),
           h("th", null, "Started"), h("th", null, "Ended"), h("th", { class: "right" }, "Lasted"))),
         h("tbody", null, incidents.map((i) => h("tr", null,

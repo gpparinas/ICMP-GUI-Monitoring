@@ -27,10 +27,18 @@ the devices you monitor, and no per-device licence.
   percentages, an incident log, and a CSV uptime report for Excel or Google Sheets.
 - **Everything is managed in the browser.** Add, edit, pause and delete monitors and group
   them (Network, Servers, Websites...). No config files to edit.
-- **Wall-screen mode:** optionally show the dashboard read-only without signing in.
+- **Wall screen:** a full-screen view for a TV or spare monitor in the office, readable from
+  across the room. Combine it with "Show the dashboard without signing in" so the screen needs
+  no password.
 - Light and dark themes; works on a phone.
 
+Every monitor appears as a port on a patch panel. A connected port is dark with a green
+light; a port that stops answering empties and its light turns red, so a problem is visible
+at a glance. Status is always shown by shape as well as colour.
+
 ![Monitor detail](images/monitor.png)
+
+![Wall screen](images/wall-dark.png)
 
 ## Quick start
 
@@ -199,7 +207,8 @@ tests/          pytest suite
 ```
 
 The dashboard has no external dependencies and makes no requests to other sites, so it works
-on a network with no internet access.
+on a network with no internet access. Its typeface, [Archivo](https://github.com/Omnibus-Type/Archivo),
+is bundled in `static/fonts/` under the SIL Open Font License.
 
 ## Ideas for later
 

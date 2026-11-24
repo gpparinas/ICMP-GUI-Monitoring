@@ -45,19 +45,24 @@ export function clear(el, ...children) {
 
 // --- icons -------------------------------------------------------------------
 
+// Status icons are network sockets, so status never depends on colour alone:
+// up is a filled socket, degraded half-filled, down an empty socket with a cross,
+// paused an empty outline, pending a dashed outline.
+const SOCKET = "M2.5 2.5h11v8.5h-3v2.5h-5V11h-3z";
 const ICONS = {
-  up: '<circle cx="8" cy="8" r="7" fill="currentColor"/><path d="M4.8 8.2l2.2 2.2 4.2-4.6" fill="none" stroke="#fff" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/>',
-  degraded: '<path d="M8 1.6l6.9 12.1H1.1z" fill="currentColor" stroke="currentColor" stroke-width="1.2" stroke-linejoin="round"/><path d="M8 6v3.6" stroke="#0b0b0b" stroke-width="1.6" stroke-linecap="round"/><circle cx="8" cy="11.7" r=".95" fill="#0b0b0b"/>',
-  down: '<circle cx="8" cy="8" r="7" fill="currentColor"/><path d="M5.5 5.5l5 5m0-5l-5 5" stroke="#fff" stroke-width="1.7" stroke-linecap="round"/>',
-  paused: '<circle cx="8" cy="8" r="7" fill="currentColor"/><path d="M6.2 5.4v5.2m3.6-5.2v5.2" stroke="#fff" stroke-width="1.7" stroke-linecap="round"/>',
-  pending: '<circle cx="8" cy="8" r="7" fill="currentColor"/><circle cx="5" cy="8" r="1" fill="#fff"/><circle cx="8" cy="8" r="1" fill="#fff"/><circle cx="11" cy="8" r="1" fill="#fff"/>',
+  up: `<path d="${SOCKET}" fill="currentColor" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/>`,
+  degraded: `<path d="${SOCKET}" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/><path d="M3.25 7.25h9.5v3h-3v2.5h-3.5v-2.5h-3z" fill="currentColor"/>`,
+  down: `<path d="${SOCKET}" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/><path d="M5.6 4.9l4.8 4.4m0-4.4L5.6 9.3" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>`,
+  paused: `<path d="${SOCKET}" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/>`,
+  pending: `<path d="${SOCKET}" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round" stroke-dasharray="2 1.6"/>`,
   plus: '<path d="M8 3v10M3 8h10" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>',
   search: '<circle cx="7" cy="7" r="4.5" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M10.5 10.5L14 14" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>',
   back: '<path d="M9.5 3.5L5 8l4.5 4.5" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/>',
   sun: '<circle cx="8" cy="8" r="3" fill="currentColor"/><path d="M8 1.5v1.6m0 9.8v1.6M1.5 8h1.6m9.8 0h1.6M3.4 3.4l1.1 1.1m7 7l1.1 1.1m0-9.2l-1.1 1.1m-7 7l-1.1 1.1" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/>',
   moon: '<path d="M13.5 9.6A5.8 5.8 0 016.4 2.5a5.8 5.8 0 107.1 7.1z" fill="currentColor"/>',
   refresh: '<path d="M13 8a5 5 0 11-1.6-3.7M13 2.5v2.6h-2.6" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>',
-  logo: '<path d="M1.5 8.5h2.8l1.7-4.8 3 9 1.8-4.2h3.7" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>',
+  logo: `<path d="${SOCKET}" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/><circle cx="8" cy="6.4" r="1.6" fill="currentColor"/>`,
+  wall: '<rect x="1.5" y="2.5" width="13" height="9" rx="1" fill="none" stroke="currentColor" stroke-width="1.5"/><path d="M5.5 14h5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>',
 };
 
 export function icon(name, cls = "icon") {
@@ -72,6 +77,14 @@ export const STATUS_LABELS = {
 
 export function statusBadge(status) {
   return h("span", { class: `status ${status}` }, icon(status), h("span", null, STATUS_LABELS[status] || status));
+}
+
+export function statusIcon(status, label = STATUS_LABELS[status] || status) {
+  const el = icon(status, `icon ic-${status}`);
+  el.setAttribute("role", "img");
+  el.removeAttribute("aria-hidden");
+  el.setAttribute("aria-label", label);
+  return el;
 }
 
 // --- formatting ----------------------------------------------------------------

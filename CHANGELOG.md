@@ -1,5 +1,16 @@
 # Changelog
 
+## Unreleased
+
+### Changed
+- New dashboard design. Every monitor is a port on a patch panel with a link light; the page
+  opens with a plain sentence saying what is wrong ("Front desk printer is down"). Status is
+  shown by shape as well as colour, so it does not depend on telling red from green.
+- The Archivo typeface is bundled, so the dashboard still needs no internet access.
+
+### Added
+- Wall screen (`#/wall`): a full-screen panel for a TV or spare monitor. Press Esc to leave.
+
 ## 2.0.0
 
 A complete rewrite. The desktop window became a self-hosted service with a web dashboard.
