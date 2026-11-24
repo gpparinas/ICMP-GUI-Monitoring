@@ -1,5 +1,18 @@
 /* Network Health Monitor - dashboard styles. No build step, no external assets. */
 
+/* Geist and Geist Mono (SIL Open Font License, see fonts/OFL.txt), bundled so the
+   dashboard looks the same on every machine and works without internet access. */
+@font-face {
+  font-family: "Geist";
+  src: url("fonts/Geist-Variable.woff2") format("woff2");
+  font-weight: 100 900; font-style: normal; font-display: swap;
+}
+@font-face {
+  font-family: "Geist Mono";
+  src: url("fonts/GeistMono-Variable.woff2") format("woff2");
+  font-weight: 100 900; font-style: normal; font-display: swap;
+}
+
 :root {
   color-scheme: light;
   --page: #f9f9f7;
@@ -24,7 +37,8 @@
   --shadow: none;
   --radius: 8px;
   --beat-up: 0.32;
-  --mono: ui-monospace, "SF Mono", "Cascadia Mono", Menlo, Consolas, monospace;
+  --sans: "Geist", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --mono: "Geist Mono", ui-monospace, "SF Mono", "Cascadia Mono", Menlo, Consolas, monospace;
 }
 
 @media (prefers-color-scheme: dark) {
@@ -81,7 +95,8 @@ body {
   margin: 0;
   background: var(--page);
   color: var(--ink);
-  font: 14px/1.45 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  font: 14px/1.45 var(--sans);
+  -webkit-font-smoothing: antialiased;
 }
 
 h1, h2, h3, p { margin: 0; }
@@ -269,6 +284,7 @@ a.mrow:hover { background: var(--surface-2); }
 .page-head { display: flex; align-items: flex-start; gap: 16px; margin-bottom: 18px; flex-wrap: wrap; }
 .page-head h1 { font-size: 22px; font-weight: 650; letter-spacing: -0.01em; }
 .page-head .sub { display: flex; align-items: center; gap: 8px; color: var(--ink-2); margin-top: 4px; flex-wrap: wrap; }
+.page-head .addr { font-family: var(--mono); font-size: 13px; }
 .page-head .actions { display: flex; gap: 8px; flex-wrap: wrap; }
 .statusline {
   flex-wrap: wrap;

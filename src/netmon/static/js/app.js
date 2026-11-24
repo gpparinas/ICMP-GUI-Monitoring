@@ -397,7 +397,7 @@ function monitorView(id) {
     clear(head,
       h("div", { class: "page-head" },
         h("div", { class: "grow" }, h("h1", null, m.name),
-          h("div", { class: "sub" }, h("span", { class: "pill" }, TYPE_LABELS[m.type]), h("span", null, m.target),
+          h("div", { class: "sub" }, h("span", { class: "pill" }, TYPE_LABELS[m.type]), h("span", { class: "addr" }, m.target),
             h("span", { class: "muted" }, `· every ${fmtInterval(m.interval)}${m.group ? ` · ${m.group}` : ""}`))),
         actions),
       h("div", { class: `statusline ${m.status}` }, statusBadge(m.status),
