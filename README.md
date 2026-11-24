@@ -207,8 +207,8 @@ tests/          pytest suite
 ```
 
 The dashboard has no external dependencies and makes no requests to other sites, so it works
-on a network with no internet access. Its typeface, [Archivo](https://github.com/Omnibus-Type/Archivo),
-is bundled in `static/fonts/` under the SIL Open Font License.
+on a network with no internet access. It uses Segoe UI, the Windows system font, and falls
+back to each system's own font on macOS, Linux and phones.
 
 ## Ideas for later
 

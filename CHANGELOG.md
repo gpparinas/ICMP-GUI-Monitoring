@@ -6,7 +6,8 @@
 - New dashboard design. Every monitor is a port on a patch panel with a link light; the page
   opens with a plain sentence saying what is wrong ("Front desk printer is down"). Status is
   shown by shape as well as colour, so it does not depend on telling red from green.
-- The Archivo typeface is bundled, so the dashboard still needs no internet access.
+- Minimal theme: Segoe UI (the Windows system font, with native fallbacks elsewhere),
+  neutral greys and one blue for actions. Colour is otherwise used only for status.
 
 ### Added
 - Wall screen (`#/wall`): a full-screen panel for a TV or spare monitor. Press Esc to leave.
