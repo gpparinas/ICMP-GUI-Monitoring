@@ -47,7 +47,9 @@ function renderTopbar() {
   const link = (href, label, key) => h("a", { href, class: route === key || (key === "dashboard" && route === "monitor") ? "active" : "" }, label);
   const theme = currentTheme();
   clear(topbar,
-    h("a", { class: "brand", href: "#/" }, icon("logo", ""), h("span", { class: "truncate" }, s.site_title || "Network Health Monitor")),
+    h("a", { class: "brand", href: "#/" },
+      s.logo ? h("img", { class: "brand-logo", src: logoUrl(s.logo), alt: "" }) : icon("logo", ""),
+      h("span", { class: "truncate" }, s.site_title || "Network Health Monitor")),
     showNav && h("nav", { class: "nav", "aria-label": "Sections" },
       link("#/", "Dashboard", "dashboard"),
       link("#/incidents", "Incidents", "incidents"),
@@ -60,7 +62,20 @@ function renderTopbar() {
       ? h("button", { class: "btn ghost", onclick: signOut }, "Sign out")
       : showNav && h("a", { class: "btn", href: "#/login" }, "Sign in"));
   document.title = s.site_title || "Network Health Monitor";
+  setFavicon(s.logo);
   updateLive();
+}
+
+const logoUrl = (version) => `/api/branding/logo?v=${encodeURIComponent(version)}`;
+
+/** Use the uploaded logo as the browser-tab icon, or the built-in one when there is none. */
+function setFavicon(version) {
+  const link = document.querySelector('link[rel="icon"]');
+  const href = version ? logoUrl(version) : "/static/favicon.svg";
+  if (!link || link.getAttribute("href") === href) return;
+  link.setAttribute("href", href);
+  if (version) link.removeAttribute("type");
+  else link.setAttribute("type", "image/svg+xml");
 }
 
 function updateLive() {
@@ -321,8 +336,10 @@ function dashboardView() {
   return {
     async refresh() {
       state.overview = await api("/api/overview");
-      if (state.overview.site_title !== state.session.site_title) {
+      // Pick up title and logo changes made from another browser (e.g. on a wall screen).
+      if (state.overview.site_title !== state.session.site_title || state.overview.logo !== state.session.logo) {
         state.session.site_title = state.overview.site_title;
+        state.session.logo = state.overview.logo;
         renderTopbar();
       }
       renderList();
@@ -495,10 +512,11 @@ function incidentsView() {
 
 function settingsView() {
   const general = h("div", { class: "card" });
+  const branding = h("div", { class: "card" });
   const channels = h("div", { class: "card" });
   const backup = h("div", { class: "card" });
   const security = h("div", { class: "card" });
-  clear(main, h("div", { class: "page-head" }, h("h1", null, "Settings")), h("div", { class: "settings" }, general, channels, backup, security));
+  clear(main, h("div", { class: "page-head" }, h("h1", null, "Settings")), h("div", { class: "settings" }, general, branding, channels, backup, security));
 
   async function renderGeneral() {
     const s = await api("/api/settings");
@@ -524,6 +542,38 @@ function settingsView() {
         field("Keep detailed check history (days)", retention, "Hourly summaries are kept for over a year.")),
       publicView.el, degraded.el,
       h("button", { class: "btn primary", type: "submit" }, "Save settings")));
+  }
+
+  function renderBranding() {
+    const logo = state.session.logo;
+    const file = h("input", { type: "file", hidden: true,
+      accept: "image/png,image/jpeg,image/gif,image/webp,image/svg+xml,image/x-icon,.ico,.svg",
+      onchange: async () => {
+        const picked = file.files[0];
+        file.value = "";
+        if (!picked) return;
+        if (picked.size > 512 * 1024) { toast("The logo must be 512 KB or smaller.", "error"); return; }
+        await act(() => api("/api/branding/logo", { method: "PUT", body: picked }), "Logo updated");
+        await loadSession();
+        renderTopbar();
+        renderBranding();
+      } });
+    const remove = async () => {
+      await act(() => api("/api/branding/logo", { method: "DELETE" }), "Logo removed");
+      await loadSession();
+      renderTopbar();
+      renderBranding();
+    };
+    clear(branding, h("div", { class: "card-head" }, h("h2", null, "Logo")),
+      h("div", { class: "card-body logo-setting" },
+        h("div", { class: "logo-preview" }, logo ? h("img", { src: logoUrl(logo), alt: "Current logo" }) : icon("logo", "")),
+        h("div", { class: "grow" },
+          h("p", null, logo ? "Your logo is shown in the top bar and as the browser-tab icon."
+            : "Add your company or brand logo to show it in the top bar and as the browser-tab icon."),
+          h("p", { class: "help" }, "PNG, SVG, JPEG, WebP, GIF or ICO, up to 512 KB. A square image works best as a tab icon."),
+          h("div", { class: "row wrap", style: "margin-top:12px" },
+            h("button", { class: "btn", onclick: () => file.click() }, logo ? "Replace logo" : "Upload logo"),
+            logo && h("button", { class: "btn ghost", onclick: remove }, "Use default icon"), file))));
   }
 
   async function renderChannels() {
@@ -600,6 +650,7 @@ function settingsView() {
         } }, "Change password")));
   }
 
+  renderBranding();
   renderBackup();
   renderSecurity();
   let loaded = false;

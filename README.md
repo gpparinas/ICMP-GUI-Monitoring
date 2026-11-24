@@ -28,6 +28,8 @@ the devices you monitor, and no per-device licence.
 - **Everything is managed in the browser.** Add, edit, pause and delete monitors and group
   them (Network, Servers, Websites...). No config files to edit.
 - **Wall-screen mode:** optionally show the dashboard read-only without signing in.
+- **Your own branding:** upload your company logo in Settings and it replaces the icon in the
+  top bar and in the browser tab.
 - Light and dark themes; works on a phone.
 
 ![Monitor detail](images/monitor.png)

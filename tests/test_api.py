@@ -166,3 +166,53 @@ def test_dashboard_is_served_with_security_headers(client):
     assert "frame-ancestors 'none'" in response.headers["content-security-policy"]
     assert response.headers["x-content-type-options"] == "nosniff"
     assert client.get("/healthz").json()["status"] == "ok"
+
+
+PNG = b"\x89PNG\r\n\x1a\n" + b"\x00" * 32
+SVG = (b'<?xml version="1.0"?>\n<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1 1">'
+       b"<script>alert(1)</script></svg>")
+
+
+def upload(client, data, content_type="image/png"):
+    return client.put("/api/branding/logo", content=data, headers={"Content-Type": content_type})
+
+
+def test_logo_upload_replace_and_remove(admin, tmp_path):
+    assert admin.get("/api/session").json()["logo"] is None
+    assert admin.get("/api/branding/logo").status_code == 404
+
+    response = upload(admin, PNG)
+    assert response.status_code == 200
+    version = response.json()["logo"]
+    assert version and admin.get("/api/session").json()["logo"] == version
+    assert admin.get("/api/overview").json()["logo"] == version
+    logo = admin.get("/api/branding/logo")
+    assert logo.status_code == 200 and logo.content == PNG
+    assert logo.headers["content-type"] == "image/png"
+
+    # Replacing with another format leaves exactly one logo behind.
+    assert upload(admin, SVG, "image/svg+xml").status_code == 200
+    assert sorted(p.name for p in (tmp_path / "branding").iterdir()) == ["logo.svg"]
+    svg = admin.get("/api/branding/logo")
+    assert svg.headers["content-type"].startswith("image/svg+xml")
+    # Script inside an uploaded SVG must never run, even when opened directly.
+    assert "sandbox" in svg.headers["content-security-policy"]
+    assert "default-src 'none'" in svg.headers["content-security-policy"]
+
+    assert admin.delete("/api/branding/logo").json() == {"logo": None}
+    assert admin.get("/api/session").json()["logo"] is None
+    assert admin.get("/api/branding/logo").status_code == 404
+
+
+def test_logo_is_validated_and_admin_only(admin):
+    # The file's bytes decide, not the declared type.
+    assert upload(admin, b"<html>not an image</html>").status_code == 415
+    assert upload(admin, PNG + b"\x00" * (512 * 1024)).status_code == 413
+    assert admin.get("/api/session").json()["logo"] is None
+
+    upload(admin, PNG)
+    admin.post("/api/logout")
+    # Anyone may see the logo (the sign-in page shows it), but only the admin may change it.
+    assert admin.get("/api/branding/logo").status_code == 200
+    assert upload(admin, PNG).status_code == 401
+    assert admin.delete("/api/branding/logo").status_code == 401

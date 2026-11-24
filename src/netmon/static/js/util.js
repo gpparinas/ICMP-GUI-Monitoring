@@ -141,8 +141,9 @@ export async function api(path, { method = "GET", body } = {}) {
     response = await fetch(path, {
       method,
       credentials: "same-origin",
-      headers: body === undefined ? {} : { "Content-Type": "application/json" },
-      body: body === undefined ? undefined : JSON.stringify(body),
+      // A file (Blob) is sent as-is, with its own content type; anything else as JSON.
+      headers: body === undefined ? {} : { "Content-Type": body instanceof Blob ? body.type || "application/octet-stream" : "application/json" },
+      body: body === undefined || body instanceof Blob ? body : JSON.stringify(body),
     });
   } catch {
     throw new ApiError("Cannot reach the monitor. Is it still running?", 0);

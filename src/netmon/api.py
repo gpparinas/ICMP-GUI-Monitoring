@@ -47,6 +47,38 @@ HISTORY_RANGES = {
     "30d": (30 * 86400, 4 * 3600, True),
 }
 
+# Custom logo: shown in the top bar and as the browser-tab icon.
+LOGO_MAX_BYTES = 512 * 1024
+LOGO_TYPES = {  # file extension -> content type
+    "png": "image/png", "jpg": "image/jpeg", "gif": "image/gif",
+    "webp": "image/webp", "ico": "image/x-icon", "svg": "image/svg+xml",
+}
+# An uploaded SVG may contain script. Served with this policy it can never run any,
+# even if someone opens the logo's address directly.
+LOGO_CSP = "default-src 'none'; style-src 'unsafe-inline'; img-src data:; sandbox"
+
+
+def logo_kind(data: bytes) -> str | None:
+    """The logo file type, judged from the bytes themselves rather than the file name."""
+    if data.startswith(b"\x89PNG\r\n\x1a\n"):
+        return "png"
+    if data.startswith(b"\xff\xd8\xff"):
+        return "jpg"
+    if data[:6] in (b"GIF87a", b"GIF89a"):
+        return "gif"
+    if data[:4] == b"RIFF" and data[8:12] == b"WEBP":
+        return "webp"
+    if data[:4] == b"\x00\x00\x01\x00":
+        return "ico"
+    try:
+        head = data[:4096].decode("utf-8-sig").lstrip().lower()
+    except UnicodeDecodeError:
+        return None
+    if head.startswith("<") and "<svg" in head:
+        return "svg"
+    return None
+
+
 SECURITY_HEADERS = {
     "X-Content-Type-Options": "nosniff",
     "X-Frame-Options": "DENY",
@@ -61,6 +93,7 @@ SECURITY_HEADERS = {
 def create_app(data_dir: str | Path, *, start_engine: bool = True) -> FastAPI:
     data_dir = Path(data_dir)
     data_dir.mkdir(parents=True, exist_ok=True)
+    branding_dir = data_dir / "branding"
     db = Database(data_dir / "netmon.db")
     auth = Auth(db)
     engine = Engine(db)
@@ -123,6 +156,18 @@ def create_app(data_dir: str | Path, *, start_engine: bool = True) -> FastAPI:
             samesite="strict", secure=request.url.scheme == "https", path="/",
         )
 
+    def logo_file() -> Path | None:
+        for ext in LOGO_TYPES:
+            path = branding_dir / f"logo.{ext}"
+            if path.is_file():
+                return path
+        return None
+
+    def logo_version() -> str | None:
+        """Changes whenever the logo does, so browsers fetch the new one; None when unset."""
+        path = logo_file()
+        return format(path.stat().st_mtime_ns, "x") if path else None
+
     def monitor_or_404(monitor_id: int) -> dict[str, Any]:
         monitor = engine.get(monitor_id)
         if monitor is None:
@@ -143,6 +188,7 @@ def create_app(data_dir: str | Path, *, start_engine: bool = True) -> FastAPI:
             "authenticated": is_admin(request),
             "public_view": bool(db.get_setting("public_view")),
             "site_title": db.get_setting("site_title"),
+            "logo": logo_version(),
         }
 
     @app.post("/api/setup")
@@ -192,6 +238,7 @@ def create_app(data_dir: str | Path, *, start_engine: bool = True) -> FastAPI:
         return {
             "now": time.time(),
             "site_title": db.get_setting("site_title"),
+            "logo": logo_version(),
             "counts": counts,
             "uptime_24h": sum(ratios) / len(ratios) if ratios else None,
             "monitors": monitors,
@@ -376,6 +423,43 @@ def create_app(data_dir: str | Path, *, start_engine: bool = True) -> FastAPI:
         for key, value in body.model_dump().items():
             db.set_setting(key, value)
         return db.get_settings()
+
+    # The logo is public: the sign-in page shows it too.
+    @app.get("/api/branding/logo")
+    async def get_logo():
+        path = logo_file()
+        if path is None:
+            raise HTTPException(404, "No logo has been uploaded")
+        return FileResponse(path, media_type=LOGO_TYPES[path.suffix[1:]], headers={
+            "Cache-Control": "no-cache", "Content-Security-Policy": LOGO_CSP,
+        })
+
+    @app.put("/api/branding/logo", dependencies=admin)
+    async def put_logo(request: Request):
+        declared = request.headers.get("content-length", "")
+        if declared.isdigit() and int(declared) > LOGO_MAX_BYTES:
+            raise HTTPException(413, "The logo must be 512 KB or smaller")
+        data = await request.body()
+        if len(data) > LOGO_MAX_BYTES:
+            raise HTTPException(413, "The logo must be 512 KB or smaller")
+        kind = logo_kind(data)
+        if kind is None:
+            raise HTTPException(415, "Use a PNG, JPEG, SVG, WebP, GIF or ICO image")
+        branding_dir.mkdir(exist_ok=True)
+        target = branding_dir / f"logo.{kind}"
+        temp = target.with_suffix(".tmp")
+        temp.write_bytes(data)
+        os.replace(temp, target)
+        for ext in LOGO_TYPES:
+            if ext != kind:
+                (branding_dir / f"logo.{ext}").unlink(missing_ok=True)
+        return {"logo": logo_version()}
+
+    @app.delete("/api/branding/logo", dependencies=admin)
+    async def delete_logo():
+        for ext in LOGO_TYPES:
+            (branding_dir / f"logo.{ext}").unlink(missing_ok=True)
+        return {"logo": None}
 
     @app.get("/api/export", dependencies=admin)
     async def export():

@@ -1,5 +1,16 @@
 # Changelog
 
+## Unreleased
+
+### Added
+- Custom logo: upload a PNG, SVG, JPEG, WebP, GIF or ICO image in Settings to replace the
+  icon in the top bar and the browser tab.
+
+### Changed
+- Simpler dashboard: the page heading names what is down and for how long, the status tiles
+  are gone, and all groups share one table.
+- Geist and Geist Mono fonts, bundled with the app so no internet access is needed.
+
 ## 2.0.0
 
 A complete rewrite. The desktop window became a self-hosted service with a web dashboard.
